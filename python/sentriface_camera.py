@@ -55,7 +55,7 @@ from serial.tools import list_ports
 PORT             = None     # None = auto-detect; set "COM5" to force
 BAUD             = 115200
 CAMERA_INDEX     = 0        # try 1 if the wrong camera opens
-FACES_DIR        = r"d:\CapStone (Sem1)\webcam_v4.py\faces"
+FACES_DIR        = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "faces")
 SCAN_TIMEOUT_S   = 15       # send NO_FACE after this many seconds
 CAMERA_HOLD_MAX  = 40       # safety release if CAMERA_CLOSE never arrives
 SHOW_PREVIEW     = True
