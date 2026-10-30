@@ -23,8 +23,10 @@ Run     : python "camera version 6.1.py"
 import os
 import sys
 import time
+import csv
 import urllib.request
 import ctypes
+from datetime import datetime
 
 def is_space_pressed():
     """Check if SPACEBAR is pressed for manual scan trigger."""
@@ -59,6 +61,7 @@ FACES_DIR        = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fac
 SCAN_TIMEOUT_S   = 15       # send NO_FACE after this many seconds
 CAMERA_HOLD_MAX  = 40       # safety release if CAMERA_CLOSE never arrives
 SHOW_PREVIEW     = True
+ATTENDANCE_CSV   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "attendance.csv")
 
 CONFIDENCE_MAX      = 70    # LBPH: lower = stricter; raise to 80 if denied
 FACE_WINDOW         = 5     # look at the last N frames...
@@ -72,6 +75,23 @@ XML_URL = (
     "https://raw.githubusercontent.com/opencv/opencv/master"
     "/data/haarcascades/haarcascade_frontalface_default.xml"
 )
+
+# ──────────────────────────── ATTENDANCE LOG ──────────────────────────────────
+def log_attendance(name, status="GRANTED"):
+    """Append one row to attendance.csv next to this script. Never raises."""
+    try:
+        write_header = (not os.path.isfile(ATTENDANCE_CSV)
+                        or os.path.getsize(ATTENDANCE_CSV) == 0)
+        with open(ATTENDANCE_CSV, "a", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            if write_header:
+                writer.writerow(["Name", "Date", "Time", "Status"])
+            now = datetime.now()
+            writer.writerow([name, now.strftime("%Y-%m-%d"),
+                             now.strftime("%H:%M:%S"), status])
+        print(f"[LOG] Attendance: {name} ({status})")
+    except Exception as e:
+        print(f"[WARN] Could not write attendance log: {e}")
 
 # ──────────────────────────── CASCADE ─────────────────────────────────────────
 def load_cascade():
@@ -215,7 +235,7 @@ def main():
             recent     = deque(maxlen=FACE_WINDOW)
 
             def release():
-                nonlocal cap, scanning
+                nonlocal cap, scanning, window_popped
                 if cap is not None:
                     cap.release()
                     cap = None
@@ -322,6 +342,7 @@ def main():
                                 name_clean = granted.replace("_", " ")
                                 print(f"[MATCH] Recognised: {name_clean}")
                                 send(ser, f"ACCESS_GRANTED:{name_clean}")
+                                log_attendance(name_clean)
                                 scanning = False
                             elif time.time() - scan_start > SCAN_TIMEOUT_S:
                                 print("[TIMEOUT] No enrolled face found.")
